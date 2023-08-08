@@ -120,6 +120,8 @@ plt.xticks(rotation = 45)
 plt.savefig('/boxplot2.png')
 plt.show()
 
+df.shape
+
 """#### Univariate analysis
 Analisis univariate adalah cara kita melakukan analisis terhadap satu jenis (variasi) variabel saja. Dengan kata lain, analisis univariate merupakan proses untuk mengeksplorasi dan menjelaskan setiap variabel dalam kumpulan data secara terpisah.
 
@@ -169,23 +171,46 @@ plt.savefig('/pairplot.png')
 Untuk lebih mendalam memahami korelasi antar fitur digunakan Parameter correlation. Parameter ini digunakan untuk mengidentifikasi korelasi atau hubungan dari dua feature numerik dalam sebuah data. Korelasi ini digambarkan menggunakan nilai dengan rentang -1 hingga 1.
 """
 
-plt.figure(figsize=(10, 8))
+plt.figure(figsize=(12, 12))
 correlation_matrix = df.corr().round(2)
 
-sns.heatmap(data=correlation_matrix, annot=True, cmap='coolwarm', linewidths=0.5, )
+sns.heatmap(data=correlation_matrix, annot=True, cmap='autumn_r', linewidths=0.5, )
 plt.title("Correlation Matrix untuk Fitur Numerik ", size=20)
+plt.xticks(fontsize =16)
+plt.yticks(fontsize =16)
+plt.tight_layout()
+plt.savefig('correlation.png')
 
-"""Banyak fitur yang kurang berkorelasi dengan fitur target sehingga kita bisa menghapus fitur-fitur tersebut namun fitur yang dihapus hanya fitur yang korelasinya kurang dari 0.1 atau -0.1 hal ini dikarenakan jika kita menghapus banyak fitur tentunya kita akan kehilangan informasi yang mungkin berguna dari fitur tersebut. fitur tersebut diantaranya adalah 'residual sugar', 'pH', 'sulphates', 'free sulfur dioxide', 'total sulfur dioxide'."""
+"""Banyak fitur yang kurang berkorelasi dengan fitur target sehingga kita bisa menghapus fitur-fitur tersebut namun fitur yang dihapus hanya fitur yang korelasinya kurang dari 0.1 atau -0.1 hal ini dikarenakan jika kita menghapus banyak fitur tentunya kita akan kehilangan informasi yang mungkin berguna dari fitur tersebut. fitur tersebut diantaranya adalah fixed acidity, citric acid, sulphates, free sulfur dioxide, total sulfur dioxide."""
 
-columns= [ 'residual sugar', 'pH', 'sulphates', 'free sulfur dioxide', 'total sulfur dioxide']
+columns= [ 'fixed acidity', 'citric acid', 'sulphates', 'free sulfur dioxide', 'total sulfur dioxide']
 
 df.drop(columns, inplace=True, axis=1)
 df.head()
 
-"""## Data Preparation
-Pada tahap ini kita akan membuat data menjadi lebih mudah untuk diproses oleh model Machine Learning. Pada tahap ini kita akan melakukan 2 hal yaitu membagi data menjadi data training dan data test. selanjutnya kita akan melakukan feature scaling menggunakan standard scaler.
+"""sehingga fitur yang tersedia adalah volatile acidity, residual sugar, chlorides	density, pH, dan alcohol.
 
-#### Train Test Split
+## Data Preparation
+Pada tahap ini kita akan membuat data menjadi lebih mudah untuk diproses oleh model Machine Learning. Pada tahap ini kita akan melakukan 3 hal yaitu menangani data yang tidak seimbang dengan undersampling, membagi data menjadi data training dan data test. selanjutnya kita akan melakukan feature scaling menggunakan standard scaler.
+
+### Undersampling
+"""
+
+df.quality.value_counts().plot(kind = 'bar')
+plt.title('Jumlah Kelas Target Sebelum Undersampling')
+
+kelas_mayoritas = df[df['quality'] == 6]
+
+jumlah_kelas_mayoritas = len(kelas_mayoritas)
+
+jumlah_data_dihapus = int(0.2 * jumlah_kelas_mayoritas)
+
+df = df.drop(kelas_mayoritas.sample(jumlah_data_dihapus).index)
+
+df.quality.value_counts().plot(kind = 'bar')
+plt.title('Jumlah Kelas Target Setelah Undersampling')
+
+"""#### Train Test Split
 Sebelum dilakukan feature scaling seperti normalisasi ataupun standarisasi terlebih dahulu kita bagi terlebih dahulu dataset menjadi 2 bagian yaitu data train dan data test. proporsi yang digunakan dalam pembagian ini adalah  80:20 yang artinya 80% dari data akan dijadikan training set atau data yang digunakan untuk melatih model, dan 20 % dari data akan dijadikan test set atau data yang digunakan untuk menguji model.
 """
 
@@ -193,17 +218,18 @@ from sklearn.model_selection import train_test_split
 
 X = df.drop(["quality"],axis =1)
 y = df["quality"]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 123)
-
-X_train.columns
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 123, shuffle = False)
 
 """### Standarisasi
 Fefeature scaling yang digunakan adalah standard scaler. StandardScaler melakukan proses standarisasi fitur dengan mengurangkan mean (nilai rata-rata) kemudian membaginya dengan standar deviasi untuk menggeser distribusi.  StandardScaler menghasilkan distribusi dengan standar deviasi sama dengan 1 dan mean sama dengan 0. Sekitar 68% dari nilai akan berada di antara -1 dan 1.
 """
 
+df.head()
+
 from sklearn.preprocessing import StandardScaler
 
-numerical_features = ['volatile acidity', 'citric acid', 'chlorides', 'density', 'alcohol']
+numerical_features = ['volatile acidity', 'residual sugar', 'chlorides', 'density', 'pH',
+       'alcohol']
 scaler = StandardScaler()
 scaler.fit(X_train[numerical_features])
 X_train[numerical_features] = scaler.transform(X_train.loc[:, numerical_features])
@@ -303,13 +329,16 @@ mae.plot(kind='bar', ax=ax, zorder=3)
 ax.grid(zorder=0)
 plt.savefig('/mae.png')
 
-"""- Model SVM memiliki performa yang lebih baik daripada model KNN dan Boosting pada kedua data training dan data test. Ini ditunjukkan oleh fakta bahwa nilai MAE untuk SVM lebih rendah daripada nilai MAE untuk model lainnya. namun model ini mengalami overfitting yang ditandai dengan error yang lebih tinggi pada data test
+"""Berdasarkan nilai-nilai MAE di atas, kita dapat menyimpulkan beberapa hal:
 
-- Model Boosting memiliki MAE yang lebih rendah pada data training dan data testing daripada model KNN, namun model ini juga sedikit mengalami overfitting
+- Model SVM memiliki performa yang lebih baik daripada model KNN dan Boosting pada data training Ini ditunjukkan oleh fakta bahwa nilai MAE untuk SVM lebih rendah daripada nilai MAE untuk model lainnya. namun model ini mengalami *overfitting* yang ditandai dengan error yang lebih tinggi pada data test
 
-- Model KNN memiliki MAE yang lebih tinggi dari model boosting pada data training dan data test.
+- Model Boosting memiliki MAE yang lebih rendah pada data testing dari kedua model, namun model ini memiliki  MAE yang lebih tinggi pada data training dibandingkan kedua model.
 
-Kesimpulannya, berdasarkan nilai-nilai MAE ini, model SVM memiliki performa terbaik di antara ketiga model ini untuk memprediksi kualitas white-wine namun model ini mengalami overfitting.
+- Model KNN
+Model KNN memiliki MAE kedua terendah setelah model SVM pada data training dan model ini juga memiliki selisih yang tipis dengan model yang memiliki MAE terendah yaitu boosting
+
+Kita ingin memilih model yang memiliki kestabilan antara performa pada data training dan testing, oleh karena itu model KNN menjadi pilihan yang sesuai. Meskipun model Boosting memiliki nilai MAE terendah pada data testing, tetapi memiliki perbedaan yang signifikan antara performa pada data training dan testing, menunjukkan adanya underfitting. Di sisi lain, model KNN memiliki performa yang baik pada kedua data, training dan testing, dengan selisih yang lebih sedikit antara nilai-nilai MAE, menunjukkan kestabilan yang lebih baik dalam generalisasi ke data yang tidak dilihat sebelumnya.
 
 ### Prediksi
 Berikut adalah prediksi ketiga model terhadap sepuluh sample pertama dari dataset.
@@ -351,5 +380,8 @@ plt.show()
 
 ## Kesimpulan
 
-Setelah membandingkan akurasi dan juga waktu training model dapat disimpulkan jika model terbaik untuk memprediksi kualitas red-wine dikarenakan model ini memiliki error yang tidak terlalu tinggi dan waktu training yang relatif singkat.
+- Tidak ada fitur yang berkorelasi tinggi dengan kelas target yaitu quality atau kualitas wine. namun terdapat fitur yang cukup berkorelasi dengan kualitas white-wine diantaranya adalah fitur
+volatile acidity, residual sugar, chlorides	density, pH, dan alcohol.
+
+- Setelah membandingkan akurasi dan juga waktu training model dapat disimpulkan jika model terbaik untuk memprediksi kualitas *white-wine* adalah model KNN. model KNN tidak hanya menawarkan kestabilan antara performa pada data training dan testing, tetapi juga menjadi pilihan yang cepat dalam hal eksekusi. Ini menjadikannya solusi yang baik jika kita ingin mendapatkan hasil yang baik dengan waktu eksekusi yang relatif lebih singkat.
 """
